@@ -1190,11 +1190,7 @@ function handlePromo(promoId) {
   if (promoId === 'signup-coupon') { currentUser ? showToast('이미 로그인되어 있습니다') : openSignupModal(); }
   else showToast('🚚 3만원 이상 주문 시 배송비가 무료입니다');
 }
-function handleEvent(eventId, category) {
-  // [GA4 텍소노미 #1] 시원 할인 프로모션 배너 클릭
-  if (eventId === 'summer-sale') trackEvent('promotion_click', { promotion_name: '시원 할인 프로모션' });
-  quickCategory(category);
-}
+function handleEvent(eventId, category) { quickCategory(category); }
 function handleFooterLink(name) { showToast(name + ' — 데모 사이트에서는 제공되지 않습니다'); }
 
 // ────────────────────────────────
@@ -2296,7 +2292,8 @@ handleRoute();   // 최초 진입 경로 처리 (딥링크·새로고침 대응)
 
 <!-- ════════════════════════════════════════════
      GA4 이벤트 추적 (Google Analytics4 강의용 텍소노미 기준)
-     1 promotion_click  : 시원 할인 프로모션 배너 클릭      → promotion_name
+     1 select_promotion : 이벤트창(배너 9개) 클릭          → promotion_id, promotion_name, creative_name, creative_slot
+                          (값은 모두 한국어. 예: 이벤트배너_1 / 여름 시원특가 / 이벤트배너 / 1)
      2 item_view        : 메인 제품 노출                   → item_name, section
      3 item_click       : 메인 제품 클릭                   → item_name, section
      4 add_to_cart      : 상세 - 장바구니에 담기 클릭       → item_name, item_option, value
@@ -2334,6 +2331,28 @@ function cardInfo(card) {
   const list = card.closest(Object.keys(GA4_SECTIONS).map(id => '#' + id).join(','));
   return { item_name: card.dataset.productName, section: GA4_SECTIONS[list.id] };
 }
+
+// [GA4 텍소노미 #1] 이벤트창(배너) 클릭 → select_promotion
+//   메인슬라이드 5개(.banner-cta) · 이벤트배너 2개(.event-banner) · 프로모션배너 2개(.promo-banner)
+const GA4_PROMO_AREAS = [
+  { selector: '.banner-cta',   area: '메인슬라이드', name: el => el.closest('.banner-slide').dataset.bannerTitle },
+  { selector: '.event-banner', area: '이벤트배너',   name: el => el.dataset.eventName },
+  { selector: '.promo-banner', area: '프로모션배너', name: el => el.dataset.promoName },
+];
+document.addEventListener('click', (e) => {
+  for (const a of GA4_PROMO_AREAS) {
+    const el = e.target.closest(a.selector);
+    if (!el) continue;
+    const slot = [...document.querySelectorAll(a.selector)].indexOf(el) + 1;
+    trackEvent('select_promotion', {
+      promotion_id:   `${a.area}_${slot}`,
+      promotion_name: a.name(el),
+      creative_name:  a.area,
+      creative_slot:  String(slot),
+    });
+    return;
+  }
+}, true);
 
 // [GA4 텍소노미 #3] 제품 클릭 (상세로 이동하는 영역 클릭만 집계)
 document.addEventListener('click', (e) => {
