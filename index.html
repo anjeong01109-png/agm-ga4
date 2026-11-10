@@ -1,18 +1,12 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <!-- Google Tag Manager -->
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5R6S4MEET3"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
-    dataLayer.push({'gtm.start': new Date().getTime(), event: 'gtm.js'});
-  </script>
-  <script async src="https://www.googletagmanager.com/gtm.js?id=GTM-KPSV9XZP"></script>
-  <!-- End Google Tag Manager -->
-  <!-- Google Analytics 4 -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5R6S4MEET3"></script>
-  <script>
     gtag('config', 'G-5R6S4MEET3');
   </script>
   <!-- End Google Analytics 4 -->
@@ -436,10 +430,6 @@
   </style>
 </head>
 <body>
-<!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KPSV9XZP"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
 
 <!-- ══ HEADER ══ -->
 <header id="site-header">
@@ -2298,6 +2288,7 @@ handleRoute();   // 최초 진입 경로 처리 (딥링크·새로고침 대응)
      3 item_click       : 메인 제품 클릭                   → item_name, section
      4 add_to_cart      : 상세 - 장바구니에 담기 클릭       → item_name, item_option, value
      5 purchase         : 상세 - 제품 구매(바로 구매) 클릭  → item_name, item_option, value
+     6 view_promotion   : 상단 배너(메인슬라이드 5개) 노출  → 1번과 같은 매개변수
      ════════════════════════════════════════════ -->
 <script>
 function trackEvent(name, params) {
@@ -2353,6 +2344,34 @@ document.addEventListener('click', (e) => {
     return;
   }
 }, true);
+
+// [GA4 텍소노미 #6] 상단 배너(메인슬라이드) 노출 → view_promotion
+//   슬라이드가 화면에 50% 이상 보일 때 전송 (클릭 select_promotion 과 같은 매개변수)
+//   자동 슬라이드가 계속 돌아도 홈 화면 1회 방문당 슬라이드별 1번만 집계
+(function () {
+  if (!('IntersectionObserver' in window)) return;
+  const slides = [...document.querySelectorAll('#hero .banner-slide')];
+  const seen = new Set();
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (!en.isIntersecting || document.visibilityState !== 'visible') return;
+      const slot = slides.indexOf(en.target) + 1;
+      if (seen.has(slot)) return;
+      seen.add(slot);
+      trackEvent('view_promotion', {
+        promotion_id:   `메인슬라이드_${slot}`,
+        promotion_name: en.target.dataset.bannerTitle,
+        creative_name:  '메인슬라이드',
+        creative_slot:  String(slot),
+      });
+    });
+  }, { threshold: 0.5 });
+  slides.forEach(s => io.observe(s));
+  // 홈을 떠났다가 다시 오면 새 노출로 집계
+  window.addEventListener('hashchange', () => setTimeout(() => {
+    if (!document.getElementById('page-home').classList.contains('is-active')) seen.clear();
+  }, 0));
+})();
 
 // [GA4 텍소노미 #3] 제품 클릭 (상세로 이동하는 영역 클릭만 집계)
 document.addEventListener('click', (e) => {
